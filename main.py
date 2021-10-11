@@ -15,12 +15,12 @@ from optimizer.power_ef21 import PowerSGD_EF21
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--optimizer", choices=["sgd", "power_sgd", "power_ef"], default="sgd")
-    parser.add_argument("--batch-size", type=int, default=256)
-    parser.add_argument("--num-epoches", type=int, default=10)
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--num_epoches", type=int, default=10)
     parser.add_argument("--lr", type=float, default=1e-2)
-    parser.add_argument("--mnist-root", type=str, default=".")
+    parser.add_argument("--mnist_root", type=str, default=".")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--optim-rank", type=int, default=8)
+    parser.add_argument("--optim_rank", type=int, default=8)
     return parser.parse_args()
 
 
