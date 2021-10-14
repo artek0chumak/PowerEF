@@ -16,7 +16,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--optimizer", choices=["sgd", "power_sgd", "power_ef"], default="sgd")
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--num_epoches", type=int, default=10)
+    parser.add_argument("--num_epoches", type=int, default=5)
+    parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=1e-2)
     parser.add_argument("--mnist_root", type=str, default=".")
     parser.add_argument("--seed", type=int, default=0)
@@ -34,11 +35,11 @@ def main(args):
     model = SmallCNN()
     wandb.watch(model, log_freq=100)
     if args.optimizer == "sgd":
-        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0)
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     elif args.optimizer == "power_sgd":
-        optimizer = PowerSGD(model.parameters(), lr=args.lr, momentum=0, rank=args.optim_rank)
+        optimizer = PowerSGD(model.parameters(), lr=args.lr, momentum=args.momentum, rank=args.optim_rank)
     elif args.optimizer == "power_ef":
-        optimizer = PowerSGD_EF21(model.parameters(), lr=args.lr, momentum=0, rank=args.optim_rank)
+        optimizer = PowerSGD_EF21(model.parameters(), lr=args.lr, momentum=args.momentum, rank=args.optim_rank)
     else:
         raise NotImplementedError()
     loss_fn = torch.nn.CrossEntropyLoss()

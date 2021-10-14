@@ -1,5 +1,6 @@
 import torch
 from torch.optim import Optimizer
+import wandb
 
 from .utils import orthogonalize, squarize
 
@@ -30,6 +31,10 @@ class PowerSGD_EF21(Optimizer):
                     torch.randn(squarize(p).size(1), rank) if len(p.size()) > 1 else None
                     for p in group["params"]
                 ]
+                group["momentum_buffer"] = [
+                    torch.zeros_like(p) if momentum > 0 else None
+                    for p in group["params"]
+                ]
 
     def __setstate__(self, state):
         super().__setstate__(state)
@@ -44,11 +49,14 @@ class PowerSGD_EF21(Optimizer):
                 loss = closure()
 
         for group in self.param_groups:
+            momentum_buffer_list = group["momentum_buffer"]
             weight_decay = group['weight_decay']
             momentum = group['momentum']
             dampening = group['dampening']
             nesterov = group['nesterov']
             lr = group['lr']
+            before_grad_diff = 0
+            group_approx_error = 0
 
             for idx, param in enumerate(group['params']):
                 if len(param.size()) == 1:
@@ -56,12 +64,21 @@ class PowerSGD_EF21(Optimizer):
                 else:
                     grad = squarize(param.grad)
                     c = grad - group["G"][idx]
+                    before_grad_diff += c.norm().item()
                     r = c @ group["Q"][idx]
                     orthogonalize(r)
                     group["Q"][idx] = c.T @ r
                     c = r @ group["Q"][idx].T
                     group["G"][idx] += c
                     grad = group["G"][idx].reshape(param.size())
-                param.grad = grad
-                param -= lr * grad
+
+                group_approx_error += torch.norm(param.grad - grad).item()
+
+                if momentum_buffer_list[idx] is not None:
+                    change = lr * grad + momentum * momentum_buffer_list[idx]
+                else:
+                    change = lr * grad
+                param -= change
+                momentum_buffer_list[idx] = lr * grad + momentum * momentum_buffer_list[idx]
+            wandb.log({"grad_apprx_diff": group_approx_error, "before_grad_diff": before_grad_diff}, commit=False)
         return loss

@@ -17,7 +17,11 @@ class SmallCNN(nn.Module):
             nn.MaxPool2d(2)
         )
 
-        self.cls = nn.Linear(64 * 6 * 6, 10)
+        self.cls = nn.Sequential(
+            nn.Linear(64 * 6 * 6, 400),
+            nn.ReLU(),
+            nn.Linear(400, 10)
+        )
 
     def forward(self, x):
         feature = self.features(x)

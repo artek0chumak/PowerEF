@@ -1,5 +1,6 @@
 import torch
 from torch.optim import Optimizer
+import wandb
 
 from .utils import orthogonalize, squarize
 
@@ -49,6 +50,7 @@ class PowerSGD(Optimizer):
             dampening = group['dampening']
             nesterov = group['nesterov']
             lr = group['lr']
+            group_approx_error = 0
 
             for idx, param in enumerate(group['params']):
                 if len(param.size()) == 1:
@@ -61,6 +63,7 @@ class PowerSGD(Optimizer):
                     group["Q"][idx] = group["M"][idx].T @ r
                     group["M"][idx] = group["M"][idx] - r @ group["Q"][idx].T
                     grad = (r @ group["Q"][idx].T).reshape(param.size())
-                param.grad = grad
-                param -= lr * grad
+                group_approx_error += torch.norm(param.grad - grad).item()
+                # param -= lr * grad
+            wandb.log({"grad_apprx_diff": group_approx_error}, commit=False)
         return loss
