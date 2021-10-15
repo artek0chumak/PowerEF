@@ -60,6 +60,7 @@ class PowerSGD_EF21(Optimizer):
             grad_norms = dict()
 
             for idx, param in enumerate(group['params']):
+                grad_norms[f"grad_{idx}"] = param.grad.norm().item()
                 if len(param.size()) == 1:
                     grad = param.grad
                 else:
@@ -81,8 +82,7 @@ class PowerSGD_EF21(Optimizer):
                 else:
                     change = lr * grad
                 param -= change
-                grad_norms[f"grad_{idx}"] = param.grad.norm()
-                grad_norms[f"approx_grad_{idx}"] = grad.norm()
+                grad_norms[f"approx_grad_{idx}"] = grad.norm().item()
             wandb.log(
                 {
                     "grad_apprx_diff": group_approx_error,
