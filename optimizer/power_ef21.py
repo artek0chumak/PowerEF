@@ -57,6 +57,7 @@ class PowerSGD_EF21(Optimizer):
             lr = group['lr']
             before_grad_diff = 0
             group_approx_error = 0
+            grad_norms = dict()
 
             for idx, param in enumerate(group['params']):
                 if len(param.size()) == 1:
@@ -72,7 +73,7 @@ class PowerSGD_EF21(Optimizer):
                     group["G"][idx] += c
                     grad = group["G"][idx].reshape(param.size())
 
-                group_approx_error += torch.norm(param.grad - grad).item()
+                group_approx_error += torch.norm(param.grad - grad).item() ** 2
 
                 if momentum_buffer_list[idx] is not None:
                     change = lr * grad + momentum * momentum_buffer_list[idx]
@@ -80,5 +81,14 @@ class PowerSGD_EF21(Optimizer):
                     change = lr * grad
                 param -= change
                 momentum_buffer_list[idx] = lr * grad + momentum * momentum_buffer_list[idx]
-            wandb.log({"grad_apprx_diff": group_approx_error, "before_grad_diff": before_grad_diff}, commit=False)
+                grad_norms[f"grad_{idx}"] = param.grad.norm()
+                grad_norms[f"approx_grad_{idx}"] = grad.norm()
+            wandb.log(
+                {
+                    "grad_apprx_diff": group_approx_error,
+                    "before_grad_diff": before_grad_diff,
+                    **grad_norms
+                },
+                commit=False
+            )
         return loss
