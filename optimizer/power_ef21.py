@@ -77,10 +77,10 @@ class PowerSGD_EF21(Optimizer):
 
                 if momentum_buffer_list[idx] is not None:
                     change = lr * grad + momentum * momentum_buffer_list[idx]
+                    momentum_buffer_list[idx] = lr * grad + momentum * momentum_buffer_list[idx]
                 else:
                     change = lr * grad
                 param -= change
-                momentum_buffer_list[idx] = lr * grad + momentum * momentum_buffer_list[idx]
                 grad_norms[f"grad_{idx}"] = param.grad.norm()
                 grad_norms[f"approx_grad_{idx}"] = grad.norm()
             wandb.log(
