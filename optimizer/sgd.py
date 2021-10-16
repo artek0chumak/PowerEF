@@ -1,6 +1,8 @@
 import torch
-from torch.optim import Optimizer
+import math
 import wandb
+
+from torch.optim import Optimizer
 
 
 class ApproxSGD(Optimizer):
@@ -63,15 +65,15 @@ class ApproxSGD(Optimizer):
                 group_approx_error += torch.norm(param.grad - grad).item() ** 2
 
                 if momentum_buffer_list[idx] is not None:
-                    change = lr * grad + momentum * momentum_buffer_list[idx]
-                    momentum_buffer_list[idx] = lr * grad + momentum * momentum_buffer_list[idx]
+                    change = (1 - momentum) * grad + momentum * momentum_buffer_list[idx]
+                    momentum_buffer_list[idx] = (1 - momentum) * grad + momentum * momentum_buffer_list[idx]
                 else:
-                    change = lr * grad
-                param -= change
+                    change = grad
+                param -= lr * change
 
             wandb.log(
                 {
-                    "grad_apprx_diff": group_approx_error,
+                    "grad_apprx_diff": math.sqrt(group_approx_error),
                     **grad_norms
                 },
                 commit=False
