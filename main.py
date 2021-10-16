@@ -10,12 +10,12 @@ from torchvision.datasets import MNIST
 from model import SmallCNN
 from optimizer.sgd import ApproxSGD
 from optimizer.rank_ef import RankEF
-from optimizer.ef21 import EF21
+from optimizer.ef21 import EF21, EF21Plus
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--optimizer", choices=["sgd", "power_sgd", "power_ef"], default="sgd")
+    parser.add_argument("--optimizer", choices=["sgd", "power_sgd", "power_ef", "power_ef_plus"], default="sgd")
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--num_epoches", type=int, default=3)
     parser.add_argument("--momentum", type=float, default=0)
@@ -43,6 +43,8 @@ def main(args):
         ef = RankEF(rank=args.optim_rank)
     elif args.optimizer == "power_ef":
         ef = EF21(rank=args.optim_rank)
+    elif args.optimizer == "power_ef_plus":
+        ef = EF21Plus(rank=args.optim_rank)
     else:
         raise NotImplementedError()
     if ef is not None:
