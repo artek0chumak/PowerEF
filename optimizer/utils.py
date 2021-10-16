@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 
@@ -13,10 +12,5 @@ def orthogonalize(matrix, eps=torch.tensor(1e-8)):
             rest -= torch.sum(col * rest, dim=0) * col
 
 
-def squarize(tensor):
-    sizes = tuple(tensor.size())
-    if len(sizes) == 2:
-        return tensor
-    else:
-        sq = int(np.sqrt(np.prod(sizes)))
-        return tensor.view(sq, sq)
+def rectanglize(tensor):
+    return tensor.view(tensor.size(-1), -1)
