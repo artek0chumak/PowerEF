@@ -19,11 +19,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--num_epoches", type=int, default=10)
     parser.add_argument("--momentum", type=float, default=0.99)
+    parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--lr", type=float, default=1e-1)
     parser.add_argument("--cifar_root", type=str, default=".")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--optim_rank", type=int, default=4)
     return parser.parse_args()
+
+
+def weight_decay(model):
+    weight_norm = 0
+    for n, p in model.named_parameters():
+        if "bn" not in n:
+            weight_norm = weight_norm + p.norm() ** 2
+    return weight_norm
 
 
 def main(args):
@@ -89,6 +98,8 @@ def main(args):
                 target = target.to("cuda")
             pred = model(batch)[:, :10]
             loss = loss_fn(pred, target)
+            if args.weight_decay > 0:
+                loss = loss + weight_decay(model) * args.weight_decay
             loss.backward()
             if torch.cuda.is_available():
                 loss = loss.to("cpu")
