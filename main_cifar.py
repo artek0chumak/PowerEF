@@ -38,6 +38,22 @@ def weight_decay(model):
 def main(args):
     wandb.init(project='power_ef', entity='artek-chumak', config=args, mode="online")
 
+    transform = torchvision.transforms.Compose(
+        [
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ]
+    )
+
+    train_data = CIFAR10(args.cifar_root, download=True, transform=transform)
+    train_dataloader = DataLoader(
+        train_data, batch_size=args.batch_size, sampler=torch.utils.data.RandomSampler(train_data)
+    )
+    valid_data = CIFAR10(args.cifar_root, train=False, download=True, transform=transform)
+    valid_dataloader = DataLoader(
+        valid_data, batch_size=args.batch_size, shuffle=True
+    )
+
     torch.random.manual_seed(args.seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(args.seed)
@@ -61,18 +77,15 @@ def main(args):
     if ef is not None:
         ef.add_groups(optimizer)
 
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=args.lr,
+        steps_per_epoch=len(train_dataloader),
+        epochs=args.num_epoches,
+        anneal_strategy="linear",
+    )
+
     loss_fn = torch.nn.CrossEntropyLoss()
-
-    transform = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
-
-    train_data = CIFAR10(args.cifar_root, download=True, transform=transform)
-    train_dataloader = DataLoader(
-        train_data, batch_size=args.batch_size, shuffle=True
-    )
-    valid_data = CIFAR10(args.cifar_root, train=False, download=True, transform=transform)
-    valid_dataloader = DataLoader(
-        valid_data, batch_size=args.batch_size, shuffle=True
-    )
 
     def validate():
         with torch.no_grad():
@@ -93,6 +106,7 @@ def main(args):
     for e in range(args.num_epoches):
         train_trange = tqdm(train_dataloader, total=len(train_dataloader), desc="Epoch: 0; Loss: inf")
         for batch, target in train_trange:
+            optimizer.zero_grad()
             if torch.cuda.is_available():
                 batch = batch.to("cuda")
                 target = target.to("cuda")
@@ -104,9 +118,9 @@ def main(args):
             if torch.cuda.is_available():
                 loss = loss.to("cpu")
             optimizer.step()
+            scheduler.step()
             train_trange.set_description(f"Epoch: {e}; Loss: {loss.item():.4f}")
-            wandb.log({"Train Loss": loss})
-            optimizer.zero_grad()
+            wandb.log({"Train Loss": loss, "Learning rate": scheduler.get_last_lr()[0]})
         validate()
 
 
