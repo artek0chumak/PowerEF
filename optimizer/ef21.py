@@ -11,11 +11,11 @@ class EF21:
         with torch.no_grad():
             for group in optimizer.param_groups:
                 group["G"] = [
-                    rectanglize(torch.zeros_like(p)) if len(p.size()) > 1 else None
+                    rectanglize(torch.zeros_like(p)).to(p.device) if len(p.size()) > 1 else None
                     for p in group["params"]
                 ]
                 group["Q"] = [
-                    torch.randn(rectanglize(p).size(1), self.rank) if len(p.size()) > 1 else None
+                    torch.randn(rectanglize(p).size(1), self.rank).to(p.device) if len(p.size()) > 1 else None
                     for p in group["params"]
                 ]
 
@@ -41,7 +41,7 @@ class EF21Plus(EF21):
         with torch.no_grad():
             for group in optimizer.param_groups:
                 group["Q_bias"] = [
-                    torch.randn(rectanglize(p).size(1), self.rank) if len(p.size()) > 1 else None
+                    torch.randn(rectanglize(p).size(1), self.rank).to(p.device) if len(p.size()) > 1 else None
                     for p in group["params"]
                 ]
 

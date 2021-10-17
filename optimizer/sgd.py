@@ -23,7 +23,7 @@ class ApproxSGD(Optimizer):
 
         for group in self.param_groups:
             group["momentum_buffer"] = [
-                torch.zeros_like(p) if momentum > 0 else None
+                torch.zeros_like(p).to(p.device) if momentum > 0 else None
                 for p in group["params"]
             ]
 
