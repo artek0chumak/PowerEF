@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 
 from model import resnet18
+from optimizer.adam import  ApproxAdam
 from optimizer.sgd import ApproxSGD
 from optimizer.rank_ef import RankEF
 from optimizer.ef21 import EF21, EF21Plus
@@ -15,12 +16,13 @@ from optimizer.ef21 import EF21, EF21Plus
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--optimizer", choices=["sgd", "power_sgd", "power_ef", "power_ef_plus"], default="sgd")
-    parser.add_argument("--batch_size", type=int, default=1024)
-    parser.add_argument("--num_epoches", type=int, default=100)
+    parser.add_argument("--optimizer", choices=["sgd", "adam"], default="sgd")
+    parser.add_argument("--approx", choices=["none", "power_sgd", "power_ef", "power_ef_plus"], default="none")
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--num_epoches", type=int, default=1)
     parser.add_argument("--momentum", type=float, default=0.99)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
-    parser.add_argument("--lr", type=float, default=1e-1)
+    parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--cifar_root", type=str, default=".")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--optim_rank", type=int, default=4)
@@ -77,28 +79,27 @@ def main(args):
     if torch.cuda.is_available():
         model = model.to("cuda")
     wandb.watch(model, log_freq=100)
-    optimizer = ApproxSGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
-    if args.optimizer == "sgd":
+    if args.optimizer == "adam":
+        optimizer = ApproxAdam(model.parameters(), lr=args.lr)
+    elif args.optimizer == "sgd":
+        optimizer = ApproxSGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    else:
+        raise NotImplementedError()
+
+    if args.approx == "none":
         ef = None
-    elif args.optimizer == "power_sgd":
+    elif args.approx == "power_sgd":
         ef = RankEF(rank=args.optim_rank)
-    elif args.optimizer == "power_ef":
+    elif args.approx == "power_ef":
         ef = EF21(rank=args.optim_rank)
-    elif args.optimizer == "power_ef_plus":
+    elif args.approx == "power_ef_plus":
         ef = EF21Plus(rank=args.optim_rank)
     else:
         raise NotImplementedError()
+
     if ef is not None:
         ef.add_groups(optimizer)
-
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer,
-        max_lr=args.lr,
-        steps_per_epoch=len(train_dataloader),
-        epochs=args.num_epoches,
-        anneal_strategy="linear",
-    )
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -133,9 +134,8 @@ def main(args):
             if torch.cuda.is_available():
                 loss = loss.to("cpu")
             optimizer.step()
-            scheduler.step()
             train_trange.set_description(f"Epoch: {e}; Loss: {loss.item():.4f}")
-            wandb.log({"Train Loss": loss, "Learning rate": scheduler.get_last_lr()[0]})
+            wandb.log({"Train Loss": loss})
         validate()
 
 

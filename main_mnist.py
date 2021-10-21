@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 
 from model import SmallCNN
+from optimizer.adam import ApproxAdam
 from optimizer.sgd import ApproxSGD
 from optimizer.rank_ef import RankEF
 from optimizer.ef21 import EF21, EF21Plus
@@ -15,11 +16,12 @@ from optimizer.ef21 import EF21, EF21Plus
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--optimizer", choices=["sgd", "power_sgd", "power_ef", "power_ef_plus"], default="sgd")
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--optimizer", choices=["sgd", "adam"], default="sgd")
+    parser.add_argument("--approx", choices=["none", "power_sgd", "power_ef", "power_ef_plus"], default="none")
+    parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--num_epoches", type=int, default=3)
     parser.add_argument("--momentum", type=float, default=0)
-    parser.add_argument("--lr", type=float, default=1e-1)
+    parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--mnist_root", type=str, default=".")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--optim_rank", type=int, default=4)
@@ -27,7 +29,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main(args):
-    wandb.init(project='power_ef', entity='artek-chumak', config=args)
+    wandb.init(project='power_ef', entity='artek-chumak', config=args, mode="online")
 
     torch.random.manual_seed(args.seed)
     if torch.cuda.is_available():
@@ -35,18 +37,24 @@ def main(args):
 
     model = SmallCNN()
     wandb.watch(model, log_freq=100)
-    optimizer = ApproxSGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    if args.optimizer == "adam":
+        optimizer = ApproxAdam(model.parameters(), lr=args.lr)
+    elif args.optimizer == "sgd":
+        optimizer = ApproxSGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    else:
+        raise NotImplementedError()
 
-    if args.optimizer == "sgd":
+    if args.approx == "none":
         ef = None
-    elif args.optimizer == "power_sgd":
+    elif args.approx == "power_sgd":
         ef = RankEF(rank=args.optim_rank)
-    elif args.optimizer == "power_ef":
+    elif args.approx == "power_ef":
         ef = EF21(rank=args.optim_rank)
-    elif args.optimizer == "power_ef_plus":
+    elif args.approx == "power_ef_plus":
         ef = EF21Plus(rank=args.optim_rank)
     else:
         raise NotImplementedError()
+
     if ef is not None:
         ef.add_groups(optimizer)
 
